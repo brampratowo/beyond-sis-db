@@ -13,21 +13,21 @@ sequenceDiagram
   participant S as API sync server
   participant D as PostgreSQL
 
-  G->>L: input kehadiran+nilai 13 siswa (<60 dtk)
-  Note over L: baris dibuat lokal: PK uuid, recorded_at, device_id, base_version
+  G->>L: input kehadiran+nilai 13 siswa (di bawah 60 dtk)
+  Note over L: baris dibuat lokal — PK uuid, recorded_at, device_id, base_version
   G->>G: (perangkat mati / jaringan putus)
   G->>L: dibuka 3 hari kemudian — data lokal utuh
-  L->>S: POST /sync batch {client_op_id, entity, row_id, op, payload}
-  S->>D: BEGIN — per item
+  L->>S: POST /sync batch — client_op_id, entity, row_id, op, payload
+  S->>D: BEGIN per item
   alt op baru
-    D->>D: INSERT; UNIQUE(meeting_id, enrollment_id) menahan duplikat
-  else duplikat (retry batch yang sama)
-    D->>D: conflict pada client_op_id UNIQUE -> item ditandai DUPLICATE_IGNORED, bukan error
+    D->>D: INSERT — UNIQUE meeting_id + enrollment_id menahan duplikat
+  else duplikat — retry batch yang sama
+    D->>D: conflict pada UNIQUE client_op_id — item ditandai DUPLICATE_IGNORED, bukan error
   else periode sudah dikunci
-    D->>D: guard trigger RAISE -> item error_code=LOCKED_PERIOD -> platform.pending_review
+    D->>D: guard trigger RAISE — error_code LOCKED_PERIOD — kirim ke platform.pending_review
   end
-  S-->>L: per-item ack (applied | ignored | review)
-  Note over L: baris ack dibersihkan dari antrean; sisanya retry dengan backoff
+  S-->>L: per-item ack — applied, ignored, atau review
+  Note over L: baris ack dibersihkan dari antrean — sisanya retry dengan backoff
 ```
 
 ### Aturan inti
